@@ -1,90 +1,82 @@
-let studentsData = [];
-
 async function loadData() {
-  const res = await fetch("data.json");
-  studentsData = await res.json();
-
-  // Auto-suggest list
-  const datalist = document.getElementById("students");
-  studentsData.forEach(s => {
-    let option = document.createElement("option");
-    option.value = s.name;
-    datalist.appendChild(option);
-  });
+  const response = await fetch("data.json");
+  return await response.json();
 }
 
-function showStudent(name) {
-  const student = studentsData.find(s => s.name.toLowerCase() === name.toLowerCase());
-  const resultDiv = document.getElementById("result");
-  const chartDiv = document.getElementById("chartContainer");
+function getQueryParam(param) {
+  const urlParams = new URLSearchParams(window.location.search);
+  return urlParams.get(param);
+}
+
+async function showResult() {
+  const name = getQueryParam("name");
+  const data = await loadData();
+
+  const student = data.find(s => s.name.toLowerCase() === name.toLowerCase());
+
+  const title = document.getElementById("studentTitle");
+  const container = document.getElementById("resultContainer");
 
   if (!student) {
-    resultDiv.innerHTML = `<p class="text-red-600">No record found for "${name}"</p>`;
-    resultDiv.classList.remove("hidden");
-    chartDiv.classList.add("hidden");
+    title.textContent = `No record found for "${name}"`;
     return;
   }
 
-  // Table with Tailwind styling
-  let table = `
-    <h2 class="text-xl font-semibold text-gray-700 mb-4">${student.name}</h2>
-    <table class="w-full text-left border border-gray-200 rounded-lg overflow-hidden">
-      <thead class="bg-blue-100 text-blue-800">
+  title.textContent = `Result for ${student.name}`;
+
+  // Create table
+  let tableHTML = `
+    <table class="w-full border-collapse border border-gray-300 text-center">
+      <thead class="bg-blue-200">
         <tr>
-          <th class="py-2 px-3">Question</th>
-          <th class="py-2 px-3">Marks</th>
+          <th class="border p-2">Question</th>
+          <th class="border p-2">Marks</th>
         </tr>
       </thead>
       <tbody>
   `;
-  for (let q in student.marks) {
-    table += `
-      <tr class="border-b">
-        <td class="py-2 px-3">${q}</td>
-        <td class="py-2 px-3">${student.marks[q]}</td>
-      </tr>`;
+
+  for (const [q, mark] of Object.entries(student.marks)) {
+    tableHTML += `
+      <tr>
+        <td class="border p-2">${q}</td>
+        <td class="border p-2">${mark}</td>
+      </tr>
+    `;
   }
-  table += `
+
+  tableHTML += `
+        <tr class="bg-green-200 font-bold">
+          <td class="border p-2">Out Of</td>
+          <td class="border p-2">${student.out_of}</td>
+        </tr>
+        <tr class="bg-yellow-200 font-bold">
+          <td class="border p-2">Grace</td>
+          <td class="border p-2">${student.grace}</td>
+        </tr>
+        <tr class="bg-blue-300 font-bold">
+          <td class="border p-2">Total</td>
+          <td class="border p-2">${student.total}</td>
+        </tr>
       </tbody>
     </table>
-    <div class="mt-4 p-3 bg-gray-50 rounded-lg shadow-sm">
-      <p><b>Out of:</b> ${student.out_of}</p>
-      <p><b>Grace:</b> ${student.grace}</p>
-      <p><b>Total:</b> <span class="font-bold text-green-600">${student.total}</span></p>
-    </div>
   `;
 
-  resultDiv.innerHTML = table;
-  resultDiv.classList.remove("hidden");
+  container.innerHTML = tableHTML;
 
   // Chart
-  chartDiv.classList.remove("hidden");
-  const ctx = document.getElementById("chart").getContext("2d");
-
-  if (window.myChart) window.myChart.destroy(); // reset previous chart
-
-  window.myChart = new Chart(ctx, {
+  const ctx = document.getElementById("marksChart").getContext("2d");
+  new Chart(ctx, {
     type: "bar",
     data: {
       labels: Object.keys(student.marks),
       datasets: [{
-        label: "Marks",
+        label: "Marks per Question",
         data: Object.values(student.marks),
-        backgroundColor: "rgba(59,130,246,0.6)",
-        borderColor: "rgba(59,130,246,1)",
-        borderWidth: 1
+        backgroundColor: "rgba(54, 162, 235, 0.6)"
       }]
-    },
-    options: {
-      scales: {
-        y: { beginAtZero: true }
-      }
     }
   });
 }
 
-document.getElementById("searchBar").addEventListener("change", (e) => {
-  showStudent(e.target.value);
-});
-
-loadData();
+showResult();
